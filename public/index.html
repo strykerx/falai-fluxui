@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fal.ai Image Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.3.4/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .input-section, .result-section, .gallery-section {
+            background-color: #2d2d2d;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .input-result-container {
+            display: flex;
+            gap: 20px;
+        }
+        .input-section, .result-section {
+            flex: 1;
+        }
+        h2 {
+            margin-top: 0;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+            background-color: #3d3d3d;
+            color: #ffffff;
+            border: none;
+            border-radius: 3px;
+        }
+        button {
+            background-color: #7b2cbf;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 20px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        #result-image, .gallery-image {
+            max-width: 100%;
+            margin-top: 20px;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .gallery-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #error-message {
+            color: red;
+            margin-top: 10px;
+        }
+        #success-message {
+            color: green;
+            margin-top: 10px;
+        }
+        #image-count-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        #image-count {
+            flex-grow: 1;
+        }
+        #image-count-display {
+            min-width: 30px;
+            text-align: right;
+        }
+        #result-images {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .result-image {
+            height: 400px;
+            object-fit: cover;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .result-image:hover {
+            transform: scale(1.05);
+        }
+
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #result-images, .gallery-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .gallery-image {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .result-image:hover, .gallery-image:hover {
+            transform: scale(1.05);
+        }
+
+        .shadowbox {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .shadowbox-content {
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .tab {
+            overflow: hidden;
+            border-bottom: 1px solid #3d3d3d;
+        }
+
+        .tab button {
+            background-color: #2d2d2d;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            color: #ffffff;
+        }
+
+        .tab button:hover {
+            background-color: #3d3d3d;
+        }
+
+        .tab button.active {
+            background-color: #7b2cbf;
+        }
+
+        .tabcontent {
+            display: none;
+            padding: 20px 0;
+        }
+
+        #image-preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 10px;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #7b2cbf;
+            color: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        #safety-tolerance-container {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="tab">
+            <button class="tablinks active" onclick="openTab(event, 'text2img')">Text to Image</button>
+            <button class="tablinks" onclick="openTab(event, 'img2img')">Image to Image</button>
+        </div>
+        <div id="shadowbox" class="shadowbox">
+            <span class="close">&times;</span>
+            <img class="shadowbox-content" id="shadowbox-image">
+        </div>
+        <div class="input-result-container">
+        <div id="text2img" class="tabcontent" style="display: block;">
+            
+                <div class="input-section">
+                    <h2>Input</h2>
+                    <label for="model">Model</label>
+                    <select id="model" onchange="updateModelOptions()">
+                        <option value="fal-ai/flux/schnell">Flux.1 [schnell]</option>
+                        <option value="fal-ai/flux/dev">Flux.1 [dev]</option>
+                        <option value="fal-ai/flux-pro">Flux Pro</option>
+                    </select>
+                    
+                    <label for="prompt">Prompt</label>
+                    <textarea id="prompt" rows="4"></textarea>
+                    
+                    <label for="image-size">Image Size</label>
+                    <select id="image-size">
+                        <option value="landscape_4_3">Landscape 4:3</option>
+                        <option value="square_hd">Square HD</option>
+                        <option value="portrait_4_3">Portrait 4:3</option>
+                        <option value="landscape_16_9">Landscape 16:9</option>
+                    </select>
+                    
+                    <label for="num-inference-steps">Num Inference Steps</label>
+                    <input type="number" id="num-inference-steps" value="28">
+                    
+                    <div id="guidance-scale-container">
+                        <label for="guidance-scale">Guidance Scale</label>
+                        <input type="number" id="guidance-scale" value="3.5" step="0.1" min="1" max="20">
+                    </div>
+    
+                    <div id="safety-tolerance-container">
+                        <label for="safety-tolerance">Safety Tolerance</label>
+                        <input type="range" id="safety-tolerance" min="1" max="5" value="5" step="1">
+                        <span id="safety-tolerance-value">5</span>
+                    </div>
+                    
+                    <div id="image-count-container">
+                        <label for="image-count">Number of Images:</label>
+                        <input type="range" id="image-count" min="1" max="25" value="1">
+                        <span id="image-count-display">1</span>
+                    </div>
+                    
+                    <button id="generate-btn">Generate Image</button>
+                </div>
+            
+            
+            
+        </div>
+        <div id="img2img" class="tabcontent">
+            <h2>Image to Image</h2>
+            <div class="input-section">
+                <label for="file-input" class="file-input-label">Choose Image</label>
+                <input type="file" id="file-input" accept="image/*">
+                <img id="image-preview" src="" alt="Preview" style="display: none;">
+                
+                <label for="img2img-prompt">Prompt</label>
+                <textarea id="img2img-prompt" rows="4"></textarea>
+                
+                <label for="img2img-strength">Strength</label>
+                <input type="range" id="img2img-strength" min="0" max="1" step="0.01" value="0.95">
+                <span id="strength-value">0.95</span>
+                
+                <label for="img2img-image-size">Image Size</label>
+                <select id="img2img-image-size">
+                    <option value="landscape_4_3">Landscape 4:3</option>
+                    <option value="square_hd">Square HD</option>
+                    <option value="portrait_4_3">Portrait 4:3</option>
+                    <option value="landscape_16_9">Landscape 16:9</option>
+                </select>
+                
+                <label for="img2img-num-inference-steps">Num Inference Steps</label>
+                <input type="number" id="img2img-num-inference-steps" value="40" min="1" max="100">
+                
+                <label for="img2img-guidance-scale">Guidance Scale</label>
+                <input type="number" id="img2img-guidance-scale" value="3.5" step="0.1" min="1" max="20">
+                
+                <button id="img2img-generate-btn">Generate Image</button>
+            </div>
+        </div>
+        <div class="result-section">
+            <h2>Result</h2>
+            <div id="result-images"></div>
+            <div id="loading" style="display: none;">Generating image...</div>
+            <div id="image-modal" class="image-modal">
+                <span class="close">&times;</span>
+                <img class="modal-content" id="modal-image">
+            </div>
+        </div>
+    </div>
+
+        <div class="gallery-section">
+            <h2>Gallery</h2>
+            <div id="gallery" class="gallery-grid"></div>
+        </div>
+        <div id="error-message"></div>
+        <div id="success-message"></div>
+    </div>
+
+    <script>
+        const generateBtn = document.getElementById('generate-btn');
+        const resultImage = document.getElementById('result-image');
+        const loadingDiv = document.getElementById('loading');
+        const modelSelect = document.getElementById('model');
+        const numInferenceStepsInput = document.getElementById('num-inference-steps');
+        const guidanceScaleContainer = document.getElementById('guidance-scale-container');
+        const safetyToleranceContainer = document.getElementById('safety-tolerance-container');
+        const galleryDiv = document.getElementById('gallery');
+        const imageCountSlider = document.getElementById('image-count');
+        const imageCountDisplay = document.getElementById('image-count-display');
+
+        function updateModelOptions() {
+            const model = document.getElementById('model').value;
+            const guidanceScaleContainer = document.getElementById('guidance-scale-container');
+            const safetyToleranceContainer = document.getElementById('safety-tolerance-container');
+
+            if (model === 'fal-ai/flux/schnell') {
+                guidanceScaleContainer.style.display = 'none';
+                safetyToleranceContainer.style.display = 'none';
+            } else if (model === 'fal-ai/flux-pro') {
+                guidanceScaleContainer.style.display = 'block';
+                safetyToleranceContainer.style.display = 'block';
+            } else {
+                guidanceScaleContainer.style.display = 'block';
+                safetyToleranceContainer.style.display = 'none';
+            }
+        }
+
+        const safetyToleranceSlider = document.getElementById('safety-tolerance');
+        const safetyToleranceValue = document.getElementById('safety-tolerance-value');
+
+        safetyToleranceSlider.addEventListener('input', function() {
+            safetyToleranceValue.textContent = this.value;
+        });
+
+
+
+    modelSelect.addEventListener('change', function() {
+        if (this.value === 'fal-ai/flux/schnell') {
+            numInferenceStepsInput.value = 4;
+            guidanceScaleContainer.style.display = 'none';
+            safetyToleranceContainer.style.display = 'none';
+        } else if (this.value === 'fal-ai/flux-pro') {
+            numInferenceStepsInput.value = 28;
+            guidanceScaleContainer.style.display = 'block';
+            safetyToleranceContainer.style.display = 'block';
+        } else {
+            numInferenceStepsInput.value = 28;
+            guidanceScaleContainer.style.display = 'block';
+            safetyToleranceContainer.style.display = 'none';
+        }
+    });
+
+        generateBtn.addEventListener('click', generateImage);
+
+        
+
+        imageCountSlider.addEventListener('input', function() {
+            imageCountDisplay.textContent = this.value;
+        });
+
+        // Modify the generateImage function to handle multiple images
+        async function generateImage() {
+            const errorMessageElement = document.getElementById('error-message');
+            errorMessageElement.textContent = '';
+            const model = document.getElementById('model').value;
+            const prompt = document.getElementById('prompt').value;
+            const imageSize = document.getElementById('image-size').value;
+            const numInferenceSteps = document.getElementById('num-inference-steps').value;
+            const imageCount = parseInt(document.getElementById('image-count').value);
+
+            const loadingDiv = document.getElementById('loading');
+            const resultImagesDiv = document.getElementById('result-images');
+
+            loadingDiv.style.display = 'block';
+            resultImagesDiv.innerHTML = '';
+
+            try {
+                const requestData = {
+                    model,
+                    prompt,
+                    image_size: imageSize,
+                    num_inference_steps: parseInt(numInferenceSteps),
+                    image_count: imageCount
+                };
+
+                if (model === 'fal-ai/flux/dev') {
+                    requestData.guidance_scale = parseFloat(document.getElementById('guidance-scale').value);
+                    requestData.enable_safety_checker = true;
+                } else if (model === 'fal-ai/flux-pro') {
+                    requestData.guidance_scale = parseFloat(document.getElementById('guidance-scale').value);
+                    requestData.safety_tolerance = document.getElementById('safety-tolerance').value;
+                }
+
+                const response = await axios.post('/generate-image', requestData);
+
+                response.data.image_urls.forEach(url => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = 'Generated Image';
+                    img.className = 'result-image';
+                    img.onclick = () => openShadowbox(url);
+                    resultImagesDiv.appendChild(img);
+                });
+
+                loadGallery();
+            } catch (error) {
+                console.error('Error generating image:', error);
+                alert('Error generating image. Please try again.');
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        async function loadGallery() {
+        try {
+            const response = await axios.get('/gallery');
+            const galleryElem = document.getElementById('gallery');
+            galleryElem.innerHTML = '';
+            response.data.forEach(image => {
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'gallery-item';
+                const img = document.createElement('img');
+                img.src = image.url;
+                img.alt = 'Gallery Image';
+                img.className = 'gallery-image';
+                img.onclick = () => openShadowbox(image.url);
+                imgContainer.appendChild(img);
+                
+                const loadSettingsBtn = document.createElement('button');
+                loadSettingsBtn.textContent = 'Load Settings';
+                loadSettingsBtn.onclick = () => loadImageSettings(image.filename);
+                imgContainer.appendChild(loadSettingsBtn);
+                
+                galleryElem.appendChild(imgContainer);
+            });
+        } catch (error) {
+            console.error('Error loading gallery:', error);
+        }
+    }
+
+        const shadowbox = document.getElementById('shadowbox');
+        const shadowboxImg = document.getElementById('shadowbox-image');
+        const closeBtn = document.getElementsByClassName('close')[0];
+
+        function openShadowbox(imgUrl) {
+            shadowbox.style.display = 'flex';
+            shadowboxImg.src = imgUrl;
+        }
+
+        closeBtn.onclick = function() {
+            shadowbox.style.display = 'none';
+        }
+
+        shadowbox.onclick = function(event) {
+            if (event.target == shadowbox) {
+                shadowbox.style.display = 'none';
+            }
+        }
+
+        async function loadImageSettings(filename) {
+            const errorMessageElement = document.getElementById('error-message');
+            const successMessageElement = document.getElementById('success-message');
+            errorMessageElement.textContent = '';
+            successMessageElement.textContent = '';
+
+            try {
+                const response = await axios.get(`/image-metadata/${filename}`);
+                const metadata = response.data;
+
+                document.getElementById('model').value = metadata.model;
+                document.getElementById('prompt').value = metadata.prompt;
+                document.getElementById('image-size').value = metadata.image_size;
+                document.getElementById('num-inference-steps').value = metadata.num_inference_steps;
+
+                if (metadata.model != 'fal-ai/flux/schnell') {
+                    document.getElementById('guidance-scale').value = metadata.guidance_scale;
+                    guidanceScaleContainer.style.display = 'block';
+                } else {
+                    guidanceScaleContainer.style.display = 'none';
+                }
+
+                console.log('Image settings loaded successfully');
+                successMessageElement.textContent = 'Image settings loaded successfully!';
+            } catch (error) {
+                console.error('Error loading image settings:', error);
+                let errorMessage = 'Error loading image settings. ';
+                if (error.response) {
+                    errorMessage += `Server responded with status ${error.response.status}. `;
+                    if (error.response.data && error.response.data.error) {
+                        errorMessage += error.response.data.error;
+                    }
+                } else if (error.request) {
+                    errorMessage += 'No response received from server.';
+                } else {
+                    errorMessage += error.message;
+                }
+                errorMessageElement.textContent = errorMessage;
+            }
+
+            // Add these new functions for the image modal
+        const modal = document.getElementById('image-modal');
+        const modalImg = document.getElementById('modal-image');
+        const span = document.getElementsByClassName('close')[0];
+
+        function openModal(imgUrl) {
+            modal.style.display = 'flex';
+            modalImg.src = imgUrl;
+        }
+
+        span.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+        }
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // File input preview
+        const fileInput = document.getElementById('file-input');
+        const imagePreview = document.getElementById('image-preview');
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Strength slider
+        const strengthSlider = document.getElementById('img2img-strength');
+        const strengthValue = document.getElementById('strength-value');
+
+        strengthSlider.addEventListener('input', function() {
+            strengthValue.textContent = this.value;
+        });
+
+        // Image to Image generation
+        const img2imgGenerateBtn = document.getElementById('img2img-generate-btn');
+        img2imgGenerateBtn.addEventListener('click', generateImg2Img);
+
+        async function generateImg2Img() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select an image first.');
+                return;
+            }
+
+            const prompt = document.getElementById('img2img-prompt').value;
+            const strength = strengthSlider.value;
+            const imageSize = document.getElementById('img2img-image-size').value;
+            const numInferenceSteps = document.getElementById('img2img-num-inference-steps').value;
+            const guidanceScale = document.getElementById('img2img-guidance-scale').value;
+
+            const loadingDiv = document.getElementById('loading');
+            const resultImagesDiv = document.getElementById('result-images');
+
+            loadingDiv.style.display = 'block';
+            resultImagesDiv.innerHTML = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('prompt', prompt);
+                formData.append('strength', strength);
+                formData.append('image_size', imageSize);
+                formData.append('num_inference_steps', numInferenceSteps);
+                formData.append('guidance_scale', guidanceScale);
+
+                const response = await axios.post('/generate-img2img', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+
+                response.data.image_urls.forEach(url => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = 'Generated Image';
+                    img.className = 'result-image';
+                    img.onclick = () => openShadowbox(url);
+                    resultImagesDiv.appendChild(img);
+                });
+
+                loadGallery();
+            } catch (error) {
+                console.error('Error generating image:', error);
+                alert('Error generating image. Please try again.');
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        // Load gallery on page load
+        loadGallery();
+        updateModelOptions();
+    </script>
+</body>
+</html>
