@@ -53,3 +53,11 @@ yarn-error.log
 
 # Visual Studio Code specific files
 .vscode/
+
+# Ignore contents of images and uploads folders, but keep the folders
+images/*
+uploads/*
+
+# Keep .gitkeep files in images and uploads folders
+!images/.gitkeep
+!uploads/.gitkeep
