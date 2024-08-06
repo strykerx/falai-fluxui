@@ -2,6 +2,8 @@
 
 This project is a web-based user interface for interacting with the Fal.ai Flux image generation models. It allows users to generate images using text prompts or modify existing images, leveraging the power of Fal.ai's Flux models.
 
+![Fal.ai Flux UI Preview](assets/preview.png)
+
 ## Features
 
 - Text-to-Image generation
@@ -68,7 +70,6 @@ Contributions to improve falai-fluxui are welcome. Please feel free to submit a 
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
-
 
 ## Acknowledgements
 
